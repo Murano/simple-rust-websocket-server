@@ -5,8 +5,14 @@ use std::net::SocketAddr;
 use mio::{PollOpt, Ready};
 use std::collections::HashMap;
 
+extern crate http_muncher;
+
+
 mod websocket_server;
 use websocket_server::*;
+
+mod websocket_client;
+use websocket_client::*;
 
 
 fn main() {
