@@ -1,12 +1,14 @@
 use mio::tcp::*;
+use std::io::Read;
 use std::collections::HashMap;
 use mio::{Token, PollOpt, Ready};
 use mio::deprecated::{EventLoop, Handler};
 
+use websocket_client::WebSocketClient;
 
 pub struct WebSocketServer {
     pub socket: TcpListener,
-    pub clients: HashMap<Token, TcpStream>,
+    pub clients: HashMap<Token, WebSocketClient>,
     pub token_counter: usize
 }
 
@@ -21,7 +23,7 @@ impl Handler for WebSocketServer {
     {
         match token {
             SERVER_TOKEN => {
-                let client_socket = match self.socket.accept() { //TODO further chapter 9
+                let client_socket = match self.socket.accept() {
                     Err(e) => {
                         println!("Ошибка установления подключения: {}", e);
                         return;
@@ -33,17 +35,16 @@ impl Handler for WebSocketServer {
                 self.token_counter += 1;
                 let new_token = Token(self.token_counter);
 
-                self.clients.insert(new_token, client_socket);
-                event_loop.register(&self.clients[&new_token],
+                self.clients.insert(new_token, WebSocketClient::new(client_socket));
+                event_loop.register(&self.clients[&new_token].socket,
                                     new_token, Ready::readable(),
                                     PollOpt::edge() | PollOpt::oneshot()).unwrap();
                 println!("New client added");
             },
-            Token(vall) => {
-                //                panic!("Errr");
-                println!("Token not srv: {}", vall);
-
-                return;
+            token => {
+                let mut client = self.clients.get_mut(&token).unwrap();
+                client.read();
+                event_loop.reregister(&client.socket, token, Ready::readable(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
             }
         }
     }

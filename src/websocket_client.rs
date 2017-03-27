@@ -2,16 +2,18 @@ use http_muncher::*;
 use mio::tcp::*;
 use std::io::Read;
 
-struct HttpParser;
-impl ParserHandler for HttpParser { }
+struct HttpParserHandler;
+impl ParserHandler for HttpParserHandler { }
 
-struct WebSocketClient {
-    socket: TcpStream,
-    http_parser: Parser //TODO не компилится
+pub struct WebSocketClient {
+    pub socket: TcpStream,
+    http_parser: Parser
 }
 
 impl WebSocketClient {
-    fn read(&mut self) {
+    pub fn read(&mut self) {
+        let mut handler = HttpParserHandler {};
+
         loop {
             let mut buf = [0; 2048];
             match self.socket.read(&mut buf) {
@@ -20,7 +22,7 @@ impl WebSocketClient {
                     return
                 },
                 Ok(len) => {
-                    self.http_parser.parse(&buf[0..len]);
+                    self.http_parser.parse(&mut handler, &buf[0..len]);
                     if self.http_parser.is_upgrade() {
                         // ...
                         break;
@@ -30,10 +32,10 @@ impl WebSocketClient {
         }
     }
 
-    fn new(socket: TcpStream) -> WebSocketClient {
+    pub fn new(socket: TcpStream) -> WebSocketClient {
         WebSocketClient {
             socket: socket,
-            http_parser: Parser::request(HttpParser)
+            http_parser: Parser::request()
         }
     }
 }
